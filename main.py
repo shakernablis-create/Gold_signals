@@ -5,7 +5,7 @@ import os
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
-ANTHROPIC_KEY = os.environ.get("ANTHROPIC_KEY")
+GEMINI_KEY = os.environ.get("ANTHROPIC_KEY")
 SEEN_FILE = "seen.json"
 
 FEEDS = [
@@ -31,29 +31,19 @@ def save_seen(seen):
         json.dump(seen[-200:], f)
 
 def is_gold_related(title):
-    title_lower = title.lower()
-    return any(k in title_lower for k in GOLD_KEYWORDS)
+    return any(k in title.lower() for k in GOLD_KEYWORDS)
 
 def analyze(title):
     prompt = f"""أنت محلل أسواق ذهب. حلل تأثير هذا الخبر على سعر الذهب.
 الخبر: "{title}"
-أجب بـ JSON فقط:
-{{"signal": "احمر" أو "اخضر" أو "اصفر", "direction": "صعود" أو "هبوط" أو "تذبذب", "strength": "قوي" أو "متوسط" أو "ضعيف", "summary": "جملة وحدة بالعربية"}}"""
+أجب بـ JSON فقط بدون أي نص خارجه:
+{{"signal": "احمر او اخضر او اصفر", "direction": "صعود او هبوط او تذبذب", "strength": "قوي او متوسط او ضعيف", "summary": "جملة وحدة بالعربية"}}"""
 
     res = requests.post(
-        "https://api.anthropic.com/v1/messages",
-        headers={
-            "x-api-key": ANTHROPIC_KEY,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json"
-        },
-        json={
-            "model": "claude-sonnet-4-6",
-            "max_tokens": 300,
-            "messages": [{"role": "user", "content": prompt}]
-        }
+        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_KEY}",
+        json={"contents": [{"parts": [{"text": prompt}]}]}
     )
-    text = res.json()["content"][0]["text"]
+    text = res.json()["candidates"][0]["content"]["parts"][0]["text"]
     clean = text.replace("```json","").replace("```","").strip()
     return json.loads(clean)
 
