@@ -49,11 +49,12 @@ def analyze(title):
             "Content-Type": "application/json"
         },
         json={
-            "model": "mistralai/mistral-7b-instruct:free",
+            "model": "google/gemini-2.0-flash-exp:free",
             "messages": [{"role": "user", "content": prompt}]
         }
     )
-    text = res.json()["choices"][0]["message"]["content"]
+    data = res.json()
+    text = data["choices"][0]["message"]["content"]
     clean = text.replace("```json","").replace("```","").strip()
     return json.loads(clean)
 
