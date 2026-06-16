@@ -11,9 +11,7 @@ SEEN_FILE = "seen.json"
 FEEDS = [
     "https://feeds.reuters.com/reuters/businessNews",
     "https://www.marketwatch.com/rss/topstories",
-    "https://rss.cnn.com/rss/money_news_international.rss",
 ]
-
 GOLD_KEYWORDS = [
     "gold","fed","federal reserve","interest rate","inflation",
     "cpi","nfp","jobs","powell","dollar","treasury","war","crisis",
