@@ -5,13 +5,15 @@ import os
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
-GEMINI_KEY = os.environ.get("ANTHROPIC_KEY")
+OPENROUTER_KEY = os.environ.get("ANTHROPIC_KEY")
 SEEN_FILE = "seen.json"
 
 FEEDS = [
     "https://feeds.reuters.com/reuters/businessNews",
     "https://www.marketwatch.com/rss/topstories",
+    "https://rss.cnn.com/rss/money_news_international.rss",
 ]
+
 GOLD_KEYWORDS = [
     "gold","fed","federal reserve","interest rate","inflation",
     "cpi","nfp","jobs","powell","dollar","treasury","war","crisis",
@@ -41,11 +43,17 @@ def analyze(title):
 {{"signal": "احمر او اخضر او اصفر", "direction": "صعود او هبوط او تذبذب", "strength": "قوي او متوسط او ضعيف", "summary": "جملة وحدة بالعربية"}}"""
 
     res = requests.post(
-        f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_KEY}",
-        json={"contents": [{"parts": [{"text": prompt}]}]}
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {OPENROUTER_KEY}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "model": "mistralai/mistral-7b-instruct:free",
+            "messages": [{"role": "user", "content": prompt}]
+        }
     )
-    data = res.json()
-    text = data["candidates"][0]["content"]["parts"][0]["text"]
+    text = res.json()["choices"][0]["message"]["content"]
     clean = text.replace("```json","").replace("```","").strip()
     return json.loads(clean)
 
