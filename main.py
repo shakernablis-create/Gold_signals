@@ -1,104 +1,84 @@
 import requests
-import feedparser
 import json
+import time
 import os
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 CHAT_ID = os.environ.get("CHAT_ID")
-OPENROUTER_KEY = os.environ.get("ANTHROPIC_KEY")
 SEEN_FILE = "seen.json"
 
-FEEDS = [
-    "https://feeds.reuters.com/reuters/businessNews",
-    "https://www.marketwatch.com/rss/topstories",
-    "https://rss.cnn.com/rss/money_news_international.rss",
-]
+FF_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
 
-GOLD_KEYWORDS = [
-    "gold","fed","federal reserve","interest rate","inflation",
-    "cpi","nfp","jobs","powell","dollar","treasury","war","crisis",
-    "opec","oil","geopolitical","china","tariff",
-    "trump","tariffs","trade","sanctions","iran","ukraine",
-    "ceasefire","peace","deal","recession","debt"
-]
+GOLD_CURRENCIES = ["USD", "XAU"]
 
 def load_seen():
     try:
         with open(SEEN_FILE) as f:
-            return json.load(f)
+            return set(json.load(f))
     except:
-        return []
+        return set()
 
 def save_seen(seen):
     with open(SEEN_FILE, "w") as f:
-        json.dump(seen[-200:], f)
+        json.dump(list(seen)[-300:], f)
 
-def is_gold_related(title):
-    return any(k in title.lower() for k in GOLD_KEYWORDS)
+def send_telegram(event):
+    title = event.get("title", "")
+    country = event.get("country", "")
+    actual = event.get("actual", "")
+    forecast = event.get("forecast", "")
+    previous = event.get("previous", "")
+    date = event.get("date", "")
 
-def analyze(title):
-    prompt = f"""أنت محلل أسواق ذهب. حلل تأثير هذا الخبر على سعر الذهب.
-الخبر: "{title}"
-أجب بـ JSON فقط بدون أي نص خارجه:
-{{"signal": "احمر او اخضر او اصفر", "direction": "صعود او هبوط او تذبذب", "strength": "قوي او متوسط او ضعيف", "summary": "جملة وحدة بالعربية"}}"""
-
-    res = requests.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {OPENROUTER_KEY}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "model": "openrouter/free",
-            "messages": [{"role": "user", "content": prompt}]
-        }
-    )
-    data = res.json()
-    print("RESPONSE:", data)
-    text = data["choices"][0]["message"]["content"]
-    clean = text.replace("```json","").replace("```","").strip()
-    return json.loads(clean)
-
-def send_telegram(title, link, data):
-    icons = {"احمر":"🔴","اخضر":"🟢","اصفر":"🟡"}
-    icon = icons.get(data["signal"], "⚪")
-    msg = f"""{icon} *إشارة {data['signal']} — ذهب*
+    msg = f"""🔴 *خبر هام يؤثر على الذهب*
 
 📰 {title}
+🌍 {country}
+📅 {date}
 
-📊 {data['direction']} — {data['strength']}
-💬 {data['summary']}
+📊 الفعلي: {actual or '—'}
+📈 المتوقع: {forecast or '—'}
+📉 السابق: {previous or '—'}
 
-🔗 [اقرأ الخبر]({link})"""
+⚠️ تأثير عالي (High Impact)"""
 
     requests.post(
         f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
-        json={
-            "chat_id": CHAT_ID,
-            "text": msg,
-            "parse_mode": "Markdown",
-            "disable_web_page_preview": False
-        }
+        json={"chat_id": CHAT_ID, "text": msg, "parse_mode": "Markdown"}
     )
 
-def main():
+def check_news():
     seen = load_seen()
-    for feed_url in FEEDS:
-        feed = feedparser.parse(feed_url)
-        for entry in feed.entries[:20]:
-            title = entry.get("title", "")
-            link = entry.get("link", "")
-            if title in seen:
-                continue
-            if not is_gold_related(title):
-                continue
-            try:
-                data = analyze(title)
-                send_telegram(title, link, data)
-                seen.append(title)
-            except Exception as e:
-                print(f"Error: {e}")
+    try:
+        res = requests.get(FF_URL, timeout=15)
+        events = res.json()
+    except Exception as e:
+        print(f"Fetch error: {e}")
+        return
+
+    for event in events:
+        impact = event.get("impact", "")
+        country = event.get("country", "")
+        title = event.get("title", "")
+        event_id = f"{title}_{event.get('date','')}_{country}"
+
+        if impact != "High":
+            continue
+        if country not in GOLD_CURRENCIES:
+            continue
+        if event_id in seen:
+            continue
+
+        send_telegram(event)
+        seen.add(event_id)
+
     save_seen(seen)
+
+def main():
+    print("Gold Radar started - checking every 60 seconds")
+    while True:
+        check_news()
+        time.sleep(60)
 
 if __name__ == "__main__":
     main()
