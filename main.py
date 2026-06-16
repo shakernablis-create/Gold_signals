@@ -54,6 +54,7 @@ def analyze(title):
         }
     )
     data = res.json()
+    print("RESPONSE:", data)
     text = data["choices"][0]["message"]["content"]
     clean = text.replace("```json","").replace("```","").strip()
     return json.loads(clean)
