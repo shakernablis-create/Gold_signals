@@ -1,6 +1,5 @@
 import requests
 import json
-import time
 import os
 
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
@@ -47,7 +46,7 @@ def send_telegram(event):
         json={"chat_id": CHAT_ID, "text": msg, "parse_mode": "Markdown"}
     )
 
-def check_news():
+def main():
     seen = load_seen()
     try:
         res = requests.get(FF_URL, timeout=15)
@@ -73,12 +72,6 @@ def check_news():
         seen.add(event_id)
 
     save_seen(seen)
-
-def main():
-    print("Gold Radar started - checking every 60 seconds")
-    while True:
-        check_news()
-        time.sleep(60)
 
 if __name__ == "__main__":
     main()
