@@ -49,7 +49,7 @@ def analyze(title):
             "Content-Type": "application/json"
         },
         json={
-            "model": "meta-llama/llama-3.2-3b-instruct:free",
+            "model": "openrouter/free",
             "messages": [{"role": "user", "content": prompt}]
         }
     )
